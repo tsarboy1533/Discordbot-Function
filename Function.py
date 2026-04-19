@@ -13,31 +13,21 @@ import asyncio
 PI = math.pi
 
 a = open('token.txt', 'r')
-data = a.read()
-TOKEN = f"{data}"
-print(data)
+tokendata = a.read()
+TOKEN = f"{tokendata}"
+print(tokendata)
 a.close()
 
-#Function
-#GID = 1104757951639588884
+b = open('guild_id.txt', 'r')
+giddata = a.read()
+GID = f"{giddata}"
+print(giddata)
+b.close()
 
-#Sandbox
-GID = 976076571041497109
 
 intents = discord.Intents.all()
 client = discord.Bot(auto_sync_command=True, intents=intents)
 
-voice_client = None
-
-
-class Point:
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
-
-    def dist(self, x, y): #原点からの距離
-        r = math.sqrt(self.x*self.x + self.y*self.y)
-        return r    
 
 class App(discord.Cog):
     def __init__(self, bot: discord.Bot):
