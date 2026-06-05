@@ -12,6 +12,7 @@ from discord import slash_command
 from discord import option
 
 import os
+import io
 
 PI = math.pi
 
@@ -97,42 +98,7 @@ class App(discord.Cog):
         )
         await ctx.respond(message)
 
-    # -------------------------
-    # 一次関数 y = ax + b
-    # -------------------------
-    @slash_command(
-        name="linear",
-        description="一次関数 y = ax + b のグラフを描画",
-        guild_ids=[GID]
-    )
-    @option("a", int, required=True, description="傾き a")
-    @option("b", int, required=True, description="切片 b")
-    async def linear(self, ctx: discord.ApplicationContext, a: int, b: int):
-        x = np.linspace(-10, 10, 100)
-        y = a * x + b
 
-        fig, ax = plt.subplots()
-        ax.grid(which='major', color='gray', linestyle='--')
-        ax.plot(x, y, label=f"y = {a}x + {b}")
-        ax.legend()
-        ax.set_title(f"y = {a}x + {b}")
-        fig.savefig("./Fig/linear.png")
-        plt.close(fig)
-
-        await ctx.respond(file=discord.File("./Fig/linear.png"))
-
-    # -------------------------
-    # 二次関数 y = ax² + bx + c
-    # -------------------------
-    @slash_command(
-        name="quadratic",
-        description="二次関数 y = ax² + bx + c のグラフを描画",
-        guild_ids=[GID]
-    )
-    @option("a", int, required=True, description="x² の係数")
-    @option("b", int, required=True, description="x の係数")
-    @option("c", int, required=True, description="定数項")
-    async def quadratic(self, ctx: discord.ApplicationContext, a: int, b: int, c: int):
         x = np.linspace(-10, 10, 100)
         y = a * x**2 + b * x + c
 
@@ -158,7 +124,7 @@ class App(discord.Cog):
     @option("b", int, required=False, description="y 方向の半径（デフォルト: 7）")
     async def circle(self, ctx: discord.ApplicationContext, a: int = 5, b: int = 7):
         t = np.linspace(-PI, PI, 10000)
-        x = a * np.cos(t)                   # BUG FIX: x=acos(t) なので cos/sin を正しく対応
+        x = a * np.cos(t)
         y = b * np.sin(t)
 
         fig, ax = plt.subplots()
@@ -169,10 +135,14 @@ class App(discord.Cog):
         ax.set_ylim(-20, 20)
         ax.legend()
         ax.set_title(f"楕円  a={a}, b={b}")
-        fig.savefig("./Fig/circle.png")
+        
+        buf = io.BytesIO()
+        fig.savefig(buf, format='png')
         plt.close(fig)
+        buf.seek(0)  # 読み込み位置を先頭に戻す
 
-        await ctx.respond(file=discord.File("./Fig/circle.png"))
+        file = discord.File(buf, filename="graph.png")
+        await ctx.respond(file=file)
 
     # -------------------------
     # リサージュ曲線 x=sin(at), y=sin(bt)
@@ -196,14 +166,14 @@ class App(discord.Cog):
         ax.set_xlim(-1.2, 1.2)
         ax.set_ylim(-1.2, 1.2)
         ax.set_title(f"リサージュ曲線  x=sin({a}t), y=sin({b}t)")
-        fig.savefig("./Fig/lissajous.png")
-        plt.close(fig)
 
-        # BUG FIX: respond を1回にまとめる
-        await ctx.respond(
-            content=f"x = sin(**{a}**t),  y = sin(**{b}**t)",
-            file=discord.File("./Fig/lissajous.png")
-        )
+        buf = io.BytesIO()
+        fig.savefig(buf, format='png')
+        plt.close(fig)
+        buf.seek(0)  # 読み込み位置を先頭に戻す
+
+        file = discord.File(buf, filename="graph.png")
+        await ctx.respond(file=file)
 
     # -------------------------
     # アステロイド x=cos(t)^a, y=sin(t)^b
@@ -216,6 +186,7 @@ class App(discord.Cog):
     @option("a", int, required=False, description="cos の指数（デフォルト: 3）")
     @option("b", int, required=False, description="sin の指数（デフォルト: 3）")
     async def asteroid(self, ctx: discord.ApplicationContext, a: int = 3, b: int = 3):
+
         t = np.linspace(-PI, PI, 10000)
         x = np.cos(t) ** a
         y = np.sin(t) ** b
@@ -227,14 +198,15 @@ class App(discord.Cog):
         ax.set_xlim(-1.2, 1.2)
         ax.set_ylim(-1.2, 1.2)
         ax.set_title(f"アステロイド  x=cos(t)^{a}, y=sin(t)^{b}")
-        fig.savefig("./Fig/asteroid.png")
+        
+        buf = io.BytesIO()
+        fig.savefig(buf, format='png')
         plt.close(fig)
+        buf.seek(0)  # 読み込み位置を先頭に戻す
 
-        await ctx.respond(
-            content=f"x = cos(t)^**{a}**,  y = sin(t)^**{b}**",
-            file=discord.File("./Fig/asteroid.png")
-        )
-
+        file = discord.File(buf, filename="graph.png")
+        await ctx.respond(file=file)
+    
     # -------------------------
     # 陰関数 F(x,y) = ax² + bxy + cy² + dx + ey + f = 0
     # -------------------------
@@ -243,15 +215,14 @@ class App(discord.Cog):
         description="陰関数 F(x,y) = ax²+bxy+cy²+dx+ey+f = 0 のグラフを描画",
         guild_ids=[GID]
     )
-    @option("a", int, required=False)
-    @option("b", int, required=False)
-    @option("c", int, required=False)
-    @option("d", int, required=False)
-    @option("e", int, required=False)
-    @option("f", int, required=False)
+    @option("a", int, required=True, description="x² の係数")
+    @option("b", int, required=True, description="xy の係数")
+    @option("c", int, required=True, description="y² の係数")
+    @option("d", int, required=True, description="x の係数")
+    @option("e", int, required=True, description="x の係数")
+    @option("f", int, required=True, description="定数項")
     async def implicit(self, ctx: discord.ApplicationContext,
-                       a: int = 1, b: int = 0, c: int = 1,
-                       d: int = 0, e: int = 0, f: int = -1):
+                       a: int, b: int, c: int, d: int, e: int, f: int):
         x_range = np.linspace(-10, 10, 1000)
         y_range = np.linspace(-10, 10, 1000)
         x, y = np.meshgrid(x_range, y_range)
@@ -262,10 +233,14 @@ class App(discord.Cog):
         ax.grid(which='major', color='gray', linestyle='--')
         ax.contour(x, y, F, [0], colors="blue")
         ax.set_title(f"F = {a}x²+{b}xy+{c}y²+{d}x+{e}y+{f} = 0")
-        fig.savefig("./Fig/implicit.png")
-        plt.close(fig)
 
-        await ctx.respond(file=discord.File("./Fig/implicit.png"))
+        buf = io.BytesIO()
+        fig.savefig(buf, format='png')
+        plt.close(fig)
+        buf.seek(0)  # 読み込み位置を先頭に戻す
+
+        file = discord.File(buf, filename="graph.png")
+        await ctx.respond(file=file)
 
     # -------------------------
     # p,q トーラス結び目
@@ -294,11 +269,14 @@ class App(discord.Cog):
         ax.plot_surface(x, y, z, rstride=5, cstride=5, cmap=cmap)
         ax.view_init(90, 45)
         ax.axis("off")
-        fig.savefig("./Fig/torusknot.png")
+
+        buf = io.BytesIO()
+        fig.savefig(buf, format='png')
         plt.close(fig)
+        buf.seek(0)  # 読み込み位置を先頭に戻す
 
-        await ctx.respond(file=discord.File("./Fig/torusknot.png"))
-
+        file = discord.File(buf, filename="graph.png")
+        await ctx.respond(file=file)
 
 if __name__ == "__main__":
     client.add_cog(App(bot=client))
